@@ -57,6 +57,32 @@ class SphericalMercator
     bounds
   end
 
+  def bbox(x, y, zoom, tms_style = false)
+    y = ((zoom**2) - 1) - y if tms_style
+    _ll = [x * @size, (y + 1)*@size]
+    _ur = [(x+1)*@size, y*@size]
+    bbox = ll(_ll, zoom).concat(ll(_ur, zoom))
+    bbox
+  end
+
+  def ll(px, zoom)
+    if zoom.is_a?(Float)
+      size = @size * (2**zoom)
+      bc = size / 360.0
+      cc = (size / (2.0*Math::PI))
+      zc = size / 2.0
+      g = (px[1] - zc) / -cc
+      lon = (px[0] - zc) / bc
+      lat = R2D * (2.0 * Math.atan(Math.exp(g)) - (0.5 * Math::PI)) 
+      [lon ,lat]
+    else
+      g = (px[1] - self.zc[zoom]) / (-self.Cc[zoom])
+      lon = (px[0] - self.zc[zoom]) / self.Bc[zoom]
+      lat = R2D * (2.0 * Math.atan(Math.exp(g)) - (0.5 * Math::PI)) 
+      [lon, lat]
+    end
+  end
+
   def px(ll, zoom)
     if zoom.is_a?(Float)
       size = @size * (2**zoom)
