@@ -1,3 +1,6 @@
+require 'bigdecimal'
+require 'bigdecimal/util'
+
 class SphericalMercator
 
   attr_accessor :Bc, :Cc, :zc, :Ac
@@ -13,7 +16,7 @@ class SphericalMercator
   MAXEXTENT = 20037508.342789244
 
   def initialize(options = {})
-    @size = options[:size] || 256
+    @size = options[:size] || 256.0
     if !@@cache[@size]
       c = {}
       c[:Bc] = []
@@ -27,7 +30,7 @@ class SphericalMercator
         c[:Cc].push(size / (2*Math::PI))
         c[:zc].push(size / 2.0)
         c[:Ac].push(size)
-        size = size*2
+        size = size*2.0
       end
       @@cache[@size] = c
     end
@@ -38,14 +41,15 @@ class SphericalMercator
     self.Ac = @@cache[@size][:Ac]
   end
 
-  def xyz(bbox, zoom)
+  def xyz(bbox, zoom, tms_style = false)
     ll = [bbox[0], bbox[1]]
     ur = [bbox[2], bbox[3]]
+
     px_ll = px(ll, zoom)
     px_ur = px(ur, zoom)
 
-    x = [(px_ll[0] / @size).floor, ((px_ur[0]-1) / @size).floor]
-    y = [(px_ur[1] / @size).floor, ((px_ll[1]-1) / @size).floor]
+    x = [(px_ll[0] / @size).floor, ((px_ur[0]-1.0) / @size).floor]
+    y = [(px_ur[1] / @size).floor, ((px_ll[1]-1.0) / @size).floor]
 
     bounds = {
       minX: ((x.min < 0) ? 0 : x.min),
@@ -54,11 +58,20 @@ class SphericalMercator
       maxY: y.max
     }
 
+    if tms_style
+      tms = {
+        minY: ((2.0**zoom) - 1) - bounds[:maxY], 
+        maxY: ((2.0**zoom) - 1) - bounds[:minY]
+      }
+      bounds[:minY] = tms[:minY]
+      bounds[:maxY] = tms[:maxY]
+    end
+
     bounds
   end
 
   def bbox(x, y, zoom, tms_style = false)
-    y = ((zoom**2) - 1) - y if tms_style
+    y = ((2**zoom) - 1) - y if tms_style
     _ll = [x * @size, (y + 1)*@size]
     _ur = [(x+1)*@size, y*@size]
     bbox = ll(_ll, zoom).concat(ll(_ur, zoom))
@@ -67,7 +80,7 @@ class SphericalMercator
 
   def ll(px, zoom)
     if zoom.is_a?(Float)
-      size = @size * (2**zoom)
+      size = @size * (2.0**zoom)
       bc = size / 360.0
       cc = (size / (2.0*Math::PI))
       zc = size / 2.0
@@ -85,7 +98,7 @@ class SphericalMercator
 
   def px(ll, zoom)
     if zoom.is_a?(Float)
-      size = @size * (2**zoom)
+      size = @size * (2.0**zoom)
       d = size / 2.0
       bc = (size / 360.0)
       cc = (size / (2.0 * Math::PI))
@@ -105,6 +118,33 @@ class SphericalMercator
       (y > self.Ac[zoom]) && (y = self.Ac[zoom]);
       return [x, y];
     end
+  end
+
+  def convert(bbox, to)
+    if to == '900913'
+      forward(bbox.slice(0,2)).concat(forward(bbox.slice(2, 4)))
+    else
+      inverse(bbox.slice(0,2)).concat(inverse(bbox.slice(2, 4)))
+    end
+  end
+
+  def forward(ll)
+    xy = [
+      A * ll[0] * D2R, 
+      A * Math.log(Math.tan((Math::PI * 0.25) + (0.5 * ll[1] * D2R)))
+    ]
+    (xy[0] > MAXEXTENT) && (xy[0] = MAXEXTENT);
+    (xy[0] < -MAXEXTENT) && (xy[0] = -MAXEXTENT);
+    (xy[1] > MAXEXTENT) && (xy[1] = MAXEXTENT);
+    (xy[1] < -MAXEXTENT) && (xy[1] = -MAXEXTENT);
+    xy
+  end
+
+  def inverse(xy)
+    [
+      (xy[0] * R2D / A), 
+      ((Math::PI * 0.5) - 2.0 * Math.atan(Math.exp(-xy[1] / A))) * R2D
+    ]
   end
 
 end
