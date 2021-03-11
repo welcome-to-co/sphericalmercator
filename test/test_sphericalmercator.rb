@@ -40,8 +40,18 @@ class SphericalMercatorTest < Minitest::Test
       assert_equal @sm.xyz([-112.5, 85.0511, -112.5, 85.0511], 0), {minX:0,minY:0,maxX:0, maxY:0}
     end 
 
+    it 'should handle broken xyz' do 
+      xyz = @sm.xyz([-0.087891, 40.95703, 0.087891, 41.044916], 3, true)
+      assert xyz[:minX] <= xyz[:maxX]
+      assert xyz[:minY] <= xyz[:maxY]
+    end
+
     it 'should convert [0,0,0] to proper bbox' do 
       assert_equal @sm.bbox(0,0,0,true), [-180, -85.05112877980659, 180, 85.0511287798066]
+    end
+
+    it 'should convert [0,0,1] to proper bbox' do 
+      assert_equal @sm.bbox(0,0,1,true), [-180,-85.05112877980659,0,0]      
     end
 
     it 'should convert WGS84 to 900913' do 
