@@ -12,9 +12,9 @@ at keeping feature parity with that package.
 Some datatypes are assumed to be arrays: `ll` is `[lon, lat]`, `xy` and `px` are
 `[x, y]`.
 
-```javascript
+```ruby
 // By default, precomputes up to z30
-var merc = new SphericalMercator({
+var merc = SphericalMercator.new({
     size: 256
 });
 ```
